@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 
 // --- Type declaration for the dynamically loaded 'marked' library ---
-// This tells TypeScript that the 'marked' object exists on the window.
 declare global {
   interface Window {
     marked: {
@@ -13,10 +12,6 @@ declare global {
 }
 
 // --- Mock Component and Utility Functions to make the code self-contained ---
-// NOTE: These are mock components for demonstration. In a real app, you would
-// import them from a component library.
-
-// Mocking the localStorage utility functions
 const loadJSON = (key: string, defaultValue: any) => {
   try {
     const value = window.localStorage.getItem(key);
@@ -35,7 +30,6 @@ const saveJSON = (key: string, value: any) => {
   }
 };
 
-// Mocking the components
 const Field = ({ label, children }: { label: string, children: React.ReactNode }) => (
   <label className="block text-sm font-medium text-gray-800">
     {label}
@@ -81,7 +75,7 @@ const Modal = ({ open, onClose, title, children }: { open: boolean, onClose: () 
 // --- End of Mock Components ---
 
 // Define the types for the data
-type Channel = 'EMAIL'|'LINKEDIN'|'INSTAGRAM'
+type Channel = 'EMAIL' | 'LINKEDIN' | 'INSTAGRAM'
 type Sentiment = 'POSITIVE' | 'NEGATIVE'
 type Mode = 'Personal' | 'Company 1' | 'Company 2'
 
@@ -137,12 +131,12 @@ const initialModes: Record<Mode, ModeData> = {
   },
 }
 
-export default function HomePage(){
+export default function HomePage() {
   const [mode, setMode] = useState<Mode>('Personal');
   const [channel, setChannel] = useState<Channel>('EMAIL')
   const [sentiment, setSentiment] = useState<Sentiment>('POSITIVE')
   const [incoming, setIncoming] = useState('')
-  const [result, setResult] = useState<{subject?:string, body?:string, message?:string}|null>(null)
+  const [result, setResult] = useState<{ subject?: string, body?: string, message?: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null);
   const [isMarkedLoaded, setIsMarkedLoaded] = useState(false);
@@ -160,10 +154,9 @@ export default function HomePage(){
     }));
   };
 
-  useEffect(()=> saveJSON('app_modes_data', modesData), [modesData])
+  useEffect(() => saveJSON('app_modes_data', modesData), [modesData])
 
   useEffect(() => {
-    // Dynamically load the 'marked' library from a CDN
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
     script.onload = () => setIsMarkedLoaded(true);
@@ -174,7 +167,7 @@ export default function HomePage(){
     };
   }, []);
 
-  async function draft(){
+  async function draft() {
     if (!incoming.trim()) {
       setError("Please paste an incoming message to draft a reply.");
       return;
@@ -221,29 +214,45 @@ export default function HomePage(){
           Draft the reply now.
         `;
 
-        const chatHistory = [];
-        chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-        const payload = {
-            contents: chatHistory,
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: "OBJECT",
-                    properties: {
-                      "subject": { "type": "STRING" },
-                      "body": { "type": "STRING" },
-                      "message": { "type": "STRING" }
-                    },
-                }
-            }
+        const responseSchema = channel === 'EMAIL' ? {
+          type: "object",
+          properties: {
+            subject: { type: "string", description: "The subject line of the email." },
+            body: { type: "string", description: "The body of the email, formatted with markdown for readability." }
+          },
+          required: ["subject", "body"]
+        } : {
+          type: "object",
+          properties: {
+            message: { type: "string", description: "The body of the message, formatted with markdown for readability." }
+          },
+          required: ["message"]
         };
-        const apiKey = "";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+        const payload = {
+          model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4o-mini',
+          messages: [
+            {
+              role: "system",
+              content: `You are a professional assistant. The user will provide a prompt and you must return a JSON object that adheres to the following JSON schema: ${JSON.stringify(responseSchema)}`
+            },
+            {
+              role: "user",
+              content: prompt,
+            }
+          ],
+          response_format: {
+            type: "json_object"
+          }
+        };
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`
+          },
+          body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -251,7 +260,7 @@ export default function HomePage(){
         }
 
         const json = await response.json();
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = json?.choices?.[0]?.message?.content;
 
         if (!text) {
           throw new Error("API response was empty.");
@@ -270,7 +279,7 @@ export default function HomePage(){
           });
         }
 
-        break; // Exit the loop on success
+        break;
 
       } catch (e: any) {
         if (retries < maxRetries - 1) {
@@ -287,7 +296,7 @@ export default function HomePage(){
     }
   }
 
-  function copy(text: string){
+  function copy(text: string) {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     document.body.appendChild(textarea);
@@ -335,8 +344,8 @@ export default function HomePage(){
             <div className="flex flex-wrap gap-4">
               <Field label="Channel">
                 <div className="flex gap-2">
-                  {(['EMAIL','LINKEDIN','INSTAGRAM'] as Channel[]).map(c => (
-                    <button key={c} onClick={()=> setChannel(c)} className={clsx('btn px-4 py-2 rounded-xl font-medium transition-all duration-200 shadow-sm', channel===c ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300')}>{c}</button>
+                  {(['EMAIL', 'LINKEDIN', 'INSTAGRAM'] as Channel[]).map(c => (
+                    <button key={c} onClick={() => setChannel(c)} className={clsx('btn px-4 py-2 rounded-xl font-medium transition-all duration-200 shadow-sm', channel === c ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300')}>{c}</button>
                   ))}
                 </div>
               </Field>
@@ -352,7 +361,7 @@ export default function HomePage(){
             </div>
             <div className="mt-4">
               <Field label="Paste the incoming email/DM">
-                <textarea className="w-full h-48 p-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 text-gray-800 bg-gray-50" placeholder="Paste the sender's message..." value={incoming} onChange={e=> setIncoming(e.target.value)} />
+                <textarea className="w-full h-48 p-4 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 text-gray-800 bg-gray-50" placeholder="Paste the sender's message..." value={incoming} onChange={e => setIncoming(e.target.value)} />
               </Field>
             </div>
             <div className="mt-6 flex flex-wrap gap-3 items-end">
@@ -361,8 +370,8 @@ export default function HomePage(){
               </button>
               <div className="flex-grow">
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={()=> { setModeData({ ...currentModeData, style: { ...currentModeData.style, maxWords: 100 } }); draft(); }}>Shorten</button>
-                  <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={()=> { setModeData({ ...currentModeData, style: { ...currentModeData.style, tone: 'more persuasive but still kind' } }); draft(); }}>Make persuasive</button>
+                  <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={() => { setModeData({ ...currentModeData, style: { ...currentModeData.style, maxWords: 100 } }); draft(); }}>Shorten</button>
+                  <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={() => { setModeData({ ...currentModeData, style: { ...currentModeData.style, tone: 'more persuasive but still kind' } }); draft(); }}>Make persuasive</button>
                   <div className="relative">
                     <select
                       className="w-full h-full p-2.5 rounded-xl border border-gray-300 bg-gray-200 text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
@@ -379,23 +388,23 @@ export default function HomePage(){
               </div>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-2">
-              <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 px-4 py-2 rounded-xl font-medium" onClick={()=> { setOpenSender(true) }}>Sender Details</button>
-              <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 px-4 py-2 rounded-xl font-medium" onClick={()=> { setOpenCompany(true) }}>Company Details</button>
-              <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 px-4 py-2 rounded-xl font-medium" onClick={()=> { setOpenStyle(true) }}>Style & CTA</button>
+              <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 px-4 py-2 rounded-xl font-medium" onClick={() => { setOpenSender(true) }}>Sender Details</button>
+              <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 px-4 py-2 rounded-xl font-medium" onClick={() => { setOpenCompany(true) }}>Company Details</button>
+              <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200 px-4 py-2 rounded-xl font-medium" onClick={() => { setOpenStyle(true) }}>Style & CTA</button>
             </div>
           </div>
 
           <div>
             <Field label="Draft Output">
-              {channel==='EMAIL' ? (
+              {channel === 'EMAIL' ? (
                 <div className="space-y-4">
-                  <input className="w-full p-4 rounded-xl border border-gray-300 bg-gray-100 font-medium text-gray-800" placeholder="Subject will appear here…" value={result?.subject || ''} readOnly/>
+                  <input className="w-full p-4 rounded-xl border border-gray-300 bg-gray-100 font-medium text-gray-800" placeholder="Subject will appear here…" value={result?.subject || ''} readOnly />
                   <div
                     className="w-full h-72 p-4 rounded-xl border border-gray-300 bg-gray-100 text-gray-800 whitespace-pre-wrap overflow-y-auto prose max-w-none"
                     dangerouslySetInnerHTML={{ __html: result?.body && isMarkedLoaded ? window.marked.parse(result.body) : '' }}
                   />
                   <div className="toolbar">
-                    <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={()=> copy(`${result?.subject}\n\n${result?.body}`)} disabled={!hasResult}>Copy Email</button>
+                    <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={() => copy(`${result?.subject}\n\n${result?.body}`)} disabled={!hasResult}>Copy Email</button>
                   </div>
                 </div>
               ) : (
@@ -405,7 +414,7 @@ export default function HomePage(){
                     dangerouslySetInnerHTML={{ __html: result?.message && isMarkedLoaded ? window.marked.parse(result.message) : '' }}
                   />
                   <div className="toolbar">
-                    <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={()=> copy(result?.message || '')} disabled={!hasResult}>Copy Message</button>
+                    <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium shadow-sm" onClick={() => copy(result?.message || '')} disabled={!hasResult}>Copy Message</button>
                   </div>
                 </div>
               )}
@@ -421,40 +430,40 @@ export default function HomePage(){
       )}
 
       {/* Configuration Drawers */}
-      <Drawer open={openCompany} onClose={()=> setOpenCompany(false)} title={`Company Details for ${mode}`}>
+      <Drawer open={openCompany} onClose={() => setOpenCompany(false)} title={`Company Details for ${mode}`}>
         <div className="space-y-3">
-          <Field label="Company name"><input className="w-full input" value={currentModeData.company.name} onChange={e=> setModeData({ company: {...currentModeData.company, name: e.target.value }})}/></Field>
-          <Field label="Mission"><textarea className="w-full textarea h-28" value={currentModeData.company.mission} onChange={e=> setModeData({ company: {...currentModeData.company, mission: e.target.value }})}/></Field>
-          <Field label="Product"><textarea className="w-full textarea h-24" value={currentModeData.company.product} onChange={e=> setModeData({ company: {...currentModeData.company, product: e.target.value }})}/></Field>
-          <Field label="Key value props (comma separated)"><textarea className="w-full textarea h-24" value={currentModeData.company.valueProps} onChange={e=> setModeData({ company: {...currentModeData.company, valueProps: e.target.value }})}/></Field>
-          <Field label="Links"><input className="w-full input" value={currentModeData.company.links} onChange={e=> setModeData({ company: {...currentModeData.company, links: e.target.value }})}/></Field>
+          <Field label="Company name"><input className="w-full input" value={currentModeData.company.name} onChange={e => setModeData({ company: { ...currentModeData.company, name: e.target.value } })} /></Field>
+          <Field label="Mission"><textarea className="w-full textarea h-28" value={currentModeData.company.mission} onChange={e => setModeData({ company: { ...currentModeData.company, mission: e.target.value } })} /></Field>
+          <Field label="Product"><textarea className="w-full textarea h-24" value={currentModeData.company.product} onChange={e => setModeData({ company: { ...currentModeData.company, product: e.target.value } })} /></Field>
+          <Field label="Key value props (comma separated)"><textarea className="w-full textarea h-24" value={currentModeData.company.valueProps} onChange={e => setModeData({ company: { ...currentModeData.company, valueProps: e.target.value } })} /></Field>
+          <Field label="Links"><input className="w-full input" value={currentModeData.company.links} onChange={e => setModeData({ company: { ...currentModeData.company, links: e.target.value } })} /></Field>
           <div className="toolbar">
-            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={()=> setOpenCompany(false)}>Save & Close</button>
+            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={() => setOpenCompany(false)}>Save & Close</button>
           </div>
         </div>
       </Drawer>
 
-      <Drawer open={openSender} onClose={()=> setOpenSender(false)} title={`Sender Details for ${mode}`}>
+      <Drawer open={openSender} onClose={() => setOpenSender(false)} title={`Sender Details for ${mode}`}>
         <div className="space-y-3">
-          <Field label="Sender name"><input className="w-full input" value={currentModeData.sender.name} onChange={e=> setModeData({ sender: {...currentModeData.sender, name: e.target.value }})}/></Field>
-          <Field label="Role"><input className="w-full input" value={currentModeData.sender.role} onChange={e=> setModeData({ sender: {...currentModeData.sender, role: e.target.value }})}/></Field>
-          <Field label="Company"><input className="w-full input" value={currentModeData.sender.company} onChange={e=> setModeData({ sender: {...currentModeData.sender, company: e.target.value }})}/></Field>
-          <Field label="Country"><input className="w-full input" value={currentModeData.sender.country} onChange={e=> setModeData({ sender: {...currentModeData.sender, country: e.target.value }})}/></Field>
+          <Field label="Sender name"><input className="w-full input" value={currentModeData.sender.name} onChange={e => setModeData({ sender: { ...currentModeData.sender, name: e.target.value } })} /></Field>
+          <Field label="Role"><input className="w-full input" value={currentModeData.sender.role} onChange={e => setModeData({ sender: { ...currentModeData.sender, role: e.target.value } })} /></Field>
+          <Field label="Company"><input className="w-full input" value={currentModeData.sender.company} onChange={e => setModeData({ sender: { ...currentModeData.sender, company: e.target.value } })} /></Field>
+          <Field label="Country"><input className="w-full input" value={currentModeData.sender.country} onChange={e => setModeData({ sender: { ...currentModeData.sender, country: e.target.value } })} /></Field>
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={()=> setModeData({ sender: {name:'', role:'', company:'', country:''} })}>Clear</button>
-            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={()=> setOpenSender(false)}>Save & Close</button>
+            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={() => setModeData({ sender: { name: '', role: '', company: '', country: '' } })}>Clear</button>
+            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={() => setOpenSender(false)}>Save & Close</button>
           </div>
         </div>
       </Drawer>
 
-      <Modal open={openStyle} onClose={()=> setOpenStyle(false)} title={`Style & CTA for ${mode}`}>
+      <Modal open={openStyle} onClose={() => setOpenStyle(false)} title={`Style & CTA for ${mode}`}>
         <div className="space-y-3">
-          <Field label="Tone"><input className="w-full input" value={currentModeData.style.tone} onChange={e=> setModeData({ style: {...currentModeData.style, tone: e.target.value }})}/></Field>
-          <Field label="Max words"><input className="w-full input" type="number" value={currentModeData.style.maxWords} onChange={e=> setModeData({ style: {...currentModeData.style, maxWords: Number(e.target.value) }})}/></Field>
-          <Field label="Language"><input className="w-full input" value={currentModeData.style.language} onChange={e=> setModeData({ style: {...currentModeData.style, language: e.target.value }})}/></Field>
-          <Field label="CTA"><input className="w-full input" value={currentModeData.style.cta} onChange={e=> setModeData({ style: {...currentModeData.style, cta: e.target.value }})}/></Field>
+          <Field label="Tone"><input className="w-full input" value={currentModeData.style.tone} onChange={e => setModeData({ style: { ...currentModeData.style, tone: e.target.value } })} /></Field>
+          <Field label="Max words"><input className="w-full input" type="number" value={currentModeData.style.maxWords} onChange={e => setModeData({ style: { ...currentModeData.style, maxWords: Number(e.target.value) } })} /></Field>
+          <Field label="Language"><input className="w-full input" value={currentModeData.style.language} onChange={e => setModeData({ style: { ...currentModeData.style, language: e.target.value } })} /></Field>
+          <Field label="CTA"><input className="w-full input" value={currentModeData.style.cta} onChange={e => setModeData({ style: { ...currentModeData.style, cta: e.target.value } })} /></Field>
           <div className="toolbar">
-            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={()=> setOpenStyle(false)}>Save & Close</button>
+            <button className="btn bg-gray-200 text-gray-700 hover:bg-gray-300 px-4 py-2 rounded-xl font-medium" onClick={() => setOpenStyle(false)}>Save & Close</button>
           </div>
         </div>
       </Modal>
