@@ -2,6 +2,16 @@
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 
+// --- Type declaration for the dynamically loaded 'marked' library ---
+// This tells TypeScript that the 'marked' object exists on the window.
+declare global {
+  interface Window {
+    marked: {
+      parse: (markdown: string) => string;
+    };
+  }
+}
+
 // --- Mock Component and Utility Functions to make the code self-contained ---
 // NOTE: These are mock components for demonstration. In a real app, you would
 // import them from a component library.
@@ -180,8 +190,8 @@ export default function HomePage(){
     while (retries < maxRetries) {
       try {
         const prompt = `
-          You are a professional draft assistant for a professional.
-          Your task is to draft a well matching and proper context based professional reply based on an incoming message.
+          You are a professional draft assistant for a sales representative.
+          Your task is to draft a reply based on an incoming message.
 
           Your company details:
           Company name: ${currentModeData.company.name}
