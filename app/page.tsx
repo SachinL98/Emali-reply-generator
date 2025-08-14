@@ -190,8 +190,8 @@ export default function HomePage(){
     while (retries < maxRetries) {
       try {
         const prompt = `
-          You are a professional draft assistant for a sales representative.
-          Your task is to draft a reply based on an incoming message.
+          You are a professional draft assistant for a professional person.
+          Your task is to draft a proper context matching and professional reply based on an incoming message.
 
           Your company details:
           Company name: ${currentModeData.company.name}
