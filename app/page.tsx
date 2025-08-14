@@ -230,7 +230,7 @@ export default function HomePage() {
         };
 
         const payload = {
-          model: process.env.NEXT_PUBLIC_OPENAI_MODEL || 'gpt-4o-mini',
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
           messages: [
             {
               role: "system",
@@ -250,7 +250,7 @@ export default function HomePage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
           },
           body: JSON.stringify(payload)
         });
