@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ring: theme(colors.brand.500);
+}
+
+html, body {
+  height: 100%;
+}
+
+input, textarea, select, button {
+  @apply outline-none;
+}
+
+.btn {
+  @apply inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium shadow-soft transition;
+}
+.btn-primary {
+  @apply bg-brand-600 text-white hover:bg-brand-700;
+}
+.btn-secondary {
+  @apply bg-white text-brand-700 border border-brand-200 hover:bg-brand-50;
+}
+.badge {
+  @apply text-xs px-2 py-1 rounded bg-brand-100 text-brand-700;
+}
+.card {
+  @apply bg-white rounded-xl p-5 shadow-soft;
+}
+.label {
+  @apply block text-sm font-medium text-gray-600 mb-1;
+}
+.input {
+  @apply w-full rounded-lg border border-gray-200 px-3 py-2 focus:ring-2 focus:ring-brand-300;
+}
+.textarea {
+  @apply w-full rounded-lg border border-gray-200 px-3 py-2 h-48 focus:ring-2 focus:ring-brand-300;
+}
+.toolbar {
+  @apply flex flex-wrap items-center gap-2;
+}
+.drawer-enter {
+  animation: drawerIn .22s ease-out;
+}
+@keyframes drawerIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.modal-enter {
+  animation: modalIn .18s ease-out;
+}
+@keyframes modalIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+body {
+  @apply bg-gradient-to-b from-brand-50 to-white;
+}
+header.glass {
+  backdrop-filter: saturate(160%) blur(8px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.5));
+}
